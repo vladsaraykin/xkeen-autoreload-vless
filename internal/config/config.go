@@ -100,10 +100,14 @@ func LoadFile(path string) (map[string]string, error) {
 		}
 		k = strings.TrimSpace(k)
 		v = strings.TrimSpace(v)
-		if len(v) >= 2 {
-			if (v[0] == '\'' && v[len(v)-1] == '\'') || (v[0] == '"' && v[len(v)-1] == '"') {
-				v = v[1 : len(v)-1]
+		if len(v) >= 2 && v[0] == '"' && v[len(v)-1] == '"' {
+			unquoted, err := strconv.Unquote(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid quoted value for %s: %w", k, err)
 			}
+			v = unquoted
+		} else if len(v) >= 2 && v[0] == '\'' && v[len(v)-1] == '\'' {
+			v = v[1 : len(v)-1]
 		}
 		values[k] = v
 	}
