@@ -2,8 +2,14 @@ name: Release Keenetic binary
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    paths:
+      - 'VERSION'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'go.mod'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,48 +21,72 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate SemVer tag
+      - name: Read and validate version
+        id: version
         shell: bash
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Tag must follow SemVer, for example v0.1.0 or v1.2.3-rc.1"
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "VERSION must follow SemVer, for example 0.1.0 or 1.2.3-rc.1"
             exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Go
+        if: steps.existing.outputs.exists != 'true'
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: false
 
       - name: Test
+        if: steps.existing.outputs.exists != 'true'
         run: go test ./...
 
       - name: Vet
+        if: steps.existing.outputs.exists != 'true'
         run: go vet ./...
 
       - name: Build linux/mipsle
+        if: steps.existing.outputs.exists != 'true'
         shell: bash
         env:
+          VERSION: ${{ steps.version.outputs.version }}
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: mipsle
           GOMIPS: softfloat
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
           go build -trimpath -ldflags="-s -w -X main.version=$VERSION" \
             -o dist/xkeen-autoreload-vless-linux-mipsle ./cmd/xkeen-autoreload
           sha256sum dist/xkeen-autoreload-vless-linux-mipsle \
             > dist/xkeen-autoreload-vless-linux-mipsle.sha256
 
-      - name: Create GitHub Release
+      - name: Create SemVer release
+        if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$TAG" \
             dist/xkeen-autoreload-vless-linux-mipsle \
             dist/xkeen-autoreload-vless-linux-mipsle.sha256 \
-            --title "$GITHUB_REF_NAME" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
             --generate-notes \
             --latest
