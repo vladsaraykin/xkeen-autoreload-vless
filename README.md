@@ -1,33 +1,38 @@
 # xkeen-autoreload-vless
 
-Small Go service for Keenetic/Entware that downloads a Base64 VLESS subscription, lets the user choose a country, renders XKeen `04_outbounds.json`, and restarts XKeen only when the stable node identity changes.
+Небольшой Go-сервис для Keenetic/Entware, который:
 
-The provider may rotate `sni` and `sid` on every subscription request. To avoid needless restarts, the stable identity is:
+- скачивает VLESS-подписку в Base64;
+- при первом запуске предлагает выбрать страну;
+- генерирует `04_outbounds.json` для XKeen;
+- перезапускает XKeen только при реальном изменении ноды.
+
+Провайдер может менять `sni` и `sid` при каждом запросе подписки. Чтобы не делать лишние перезапуски, стабильная идентичность ноды определяется по:
 
 `UUID | address | port | publicKey`
 
-Use `--force` when you intentionally want fresh `sni`/`sid` even if that stable identity is unchanged.
+Используйте `--force`, если нужно принудительно получить свежие `sni`/`sid`, даже если сама нода не изменилась.
 
-## First-run setup
+## Первый запуск и настройка
 
-No manual env-file editing is required.
+Ручное редактирование env-файла не требуется.
 
-Run:
+Запустите:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless setup
 ```
 
-The wizard will:
+Мастер настройки:
 
-1. Ask for the subscription URL.
-2. Download the Base64 subscription.
-3. Decode and parse VLESS nodes.
-4. Discover unique countries from node labels.
-5. Show a numbered country list.
-6. Save the selected country and subscription URL to `/opt/etc/xkeen-autoreload-vless.env` with mode `0600`.
+1. попросит ссылку на подписку;
+2. скачает Base64-ответ;
+3. декодирует и распарсит VLESS-ноды;
+4. найдёт уникальные страны по названиям нод;
+5. покажет пронумерованный список стран;
+6. сохранит выбранную страну и ссылку в `/opt/etc/xkeen-autoreload-vless.env` с правами `0600`.
 
-Example:
+Пример:
 
 ```text
 Первичная настройка xkeen-autoreload-vless
@@ -47,11 +52,27 @@ Example:
 Конфигурация сохранена: /opt/etc/xkeen-autoreload-vless.env
 ```
 
-Running `xkeen-autoreload-vless` or `xkeen-autoreload-vless run` without a saved configuration also starts the wizard automatically when stdin is interactive.
+Если запустить:
 
-To change the subscription or country later, run `setup` again.
+```sh
+xkeen-autoreload-vless
+```
 
-## Commands
+или:
+
+```sh
+xkeen-autoreload-vless run
+```
+
+без сохранённой конфигурации, мастер настройки также запустится автоматически, если приложение работает в интерактивном терминале.
+
+Чтобы позже поменять ссылку или страну, снова выполните:
+
+```sh
+xkeen-autoreload-vless setup
+```
+
+## Команды
 
 ```sh
 xkeen-autoreload-vless setup
@@ -62,19 +83,29 @@ xkeen-autoreload-vless check
 xkeen-autoreload-vless version
 ```
 
-See [INSTALL.md](INSTALL.md) for Keenetic/Entware installation.
+Подробнее об установке на Keenetic/Entware: [INSTALL.md](INSTALL.md).
 
-## Build for Keenetic / MIPSLE
+## Сборка для Keenetic / MIPSLE
 
 ```sh
 make test
 make build-mipsle
 ```
 
-The result is `dist/xkeen-autoreload-vless-linux-mipsle`.
+Результат:
 
-## Safety
+```text
+dist/xkeen-autoreload-vless-linux-mipsle
+```
 
-The config file is parsed by the Go application as data and is not sourced as shell code.
+## Безопасность
 
-Before replacing the XKeen config, the current file is copied to `04_outbounds.json.bak`. If `xkeen -restart` fails, the previous config is restored and XKeen is restarted again.
+Конфигурационный файл читается самим Go-приложением как данные и не выполняется через shell.
+
+Перед заменой конфигурации XKeen текущий файл сохраняется в:
+
+```text
+04_outbounds.json.bak
+```
+
+Если `xkeen -restart` завершится ошибкой, приложение восстановит предыдущий конфиг и повторно перезапустит XKeen.
