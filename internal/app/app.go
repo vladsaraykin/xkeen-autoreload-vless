@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/vladsaraykin/xkeen-autoreload-vless/internal/config"
 	"github.com/vladsaraykin/xkeen-autoreload-vless/internal/service"
+	"github.com/vladsaraykin/xkeen-autoreload-vless/internal/setup"
 )
 
 func Run(ctx context.Context, args []string, version string) error {
@@ -17,6 +19,21 @@ func Run(ctx context.Context, args []string, version string) error {
 	if cmd == "version" {
 		fmt.Println(version)
 		return nil
+	}
+
+	if cmd == "setup" {
+		_, err := setup.Run(ctx, cfg, os.Stdin, os.Stdout)
+		return err
+	}
+
+	if cfg.SubscriptionURL == "" || cfg.Country == "" {
+		if !config.IsInteractive() {
+			return fmt.Errorf("configuration is missing; run 'xkeen-autoreload-vless setup' interactively")
+		}
+		cfg, err = setup.Run(ctx, cfg, os.Stdin, os.Stdout)
+		if err != nil {
+			return err
+		}
 	}
 
 	updater := service.New(cfg)
