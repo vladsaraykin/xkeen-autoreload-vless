@@ -7,9 +7,7 @@ PREARGS=""
 DESC="$PROCS"
 PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-ENV_FILE=/opt/etc/xkeen-autoreload-vless.env
-if [ -r "$ENV_FILE" ]; then
-    . "$ENV_FILE"
-fi
+# The application reads /opt/etc/xkeen-autoreload-vless.env itself.
+# Do not source the file as shell code: the subscription URL is user data.
 
 . /opt/etc/init.d/rc.func
