@@ -1,6 +1,6 @@
 # Install on Keenetic / Entware
 
-The router does **not** need Go or make. Download the prebuilt static MIPSLE binary from the latest GitHub Release.
+The router does **not** need Go, make, git, or gcc. Use the prebuilt static MIPSLE binary from the latest GitHub Release.
 
 ## 1. Download
 
@@ -13,7 +13,7 @@ wget -O xkeen-autoreload-vless \
 chmod +x /opt/bin/xkeen-autoreload-vless
 ```
 
-If `wget` is unavailable, use curl:
+If `wget` is unavailable:
 
 ```sh
 curl -fL \
@@ -23,51 +23,83 @@ curl -fL \
 chmod +x /opt/bin/xkeen-autoreload-vless
 ```
 
-## 2. Check binary
+Check the version:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless version
 ```
 
-Optional architecture check:
+## 2. First-run interactive setup
+
+You no longer need to create `/opt/etc/xkeen-autoreload-vless.env` manually.
+
+Run:
 
 ```sh
-uname -m
-file /opt/bin/xkeen-autoreload-vless
+/opt/bin/xkeen-autoreload-vless setup
 ```
 
-## 3. Create config
+The application asks for the subscription URL:
 
-```sh
-cat > /opt/etc/xkeen-autoreload-vless.env <<'EOF'
-export XKEEN_SUBSCRIPTION_URL='PASTE_SUBSCRIPTION_URL_HERE'
-export XKEEN_COUNTRY='Швейцария'
-export XKEEN_CITY='Цюрих'
+```text
+Первичная настройка xkeen-autoreload-vless
 
-export XKEEN_OUTBOUND_PATH='/opt/etc/xray/configs/04_outbounds.json'
-export XKEEN_STATE_PATH='/opt/var/lib/xkeen-autoreload-vless/state.json'
-
-export XKEEN_COMMAND='xkeen'
-export XKEEN_INTERVAL='1h'
-export XKEEN_HTTP_TIMEOUT='20s'
-EOF
-
-chmod 600 /opt/etc/xkeen-autoreload-vless.env
+Вставьте URL подписки:
 ```
 
-## 4. Test without changing XKeen
+Paste your subscription URL and press Enter. The application downloads the response, decodes Base64, parses VLESS nodes, and extracts the countries from labels such as:
+
+```text
+🇳🇱 Амстердам, Нидерланды, Extra
+🇩🇪 Берлин, Германия, Extra
+🇨🇭 Цюрих, Швейцария, Extra
+```
+
+Then it displays a numbered list:
+
+```text
+Доступные страны:
+  1) Германия
+  2) Нидерланды
+  3) Швейцария
+
+Выберите страну [1-3]: 3
+```
+
+After the choice:
+
+```text
+Готово. Выбрана страна: Швейцария
+Конфигурация сохранена: /opt/etc/xkeen-autoreload-vless.env
+```
+
+The file is stored with permission `0600`. The application reads it directly; it is not executed or sourced as a shell script.
+
+If you start:
 
 ```sh
-. /opt/etc/xkeen-autoreload-vless.env
+/opt/bin/xkeen-autoreload-vless
+```
+
+without a configuration, the same wizard starts automatically when running in an interactive terminal.
+
+To change the URL or selected country later:
+
+```sh
+/opt/bin/xkeen-autoreload-vless setup
+```
+
+## 3. Validate without changing XKeen
+
+```sh
 /opt/bin/xkeen-autoreload-vless check
 ```
 
-The command should print the generated `04_outbounds.json` only.
+This downloads the subscription and prints the generated `04_outbounds.json`, but does not write the file and does not restart XKeen.
 
-## 5. One-time update
+## 4. Apply once
 
 ```sh
-. /opt/etc/xkeen-autoreload-vless.env
 /opt/bin/xkeen-autoreload-vless update
 ```
 
@@ -77,7 +109,7 @@ Force refresh of rotating SNI/SID:
 /opt/bin/xkeen-autoreload-vless update --force
 ```
 
-## 6. Install as Entware service
+## 5. Install as Entware service
 
 Download the init script:
 
@@ -106,13 +138,17 @@ Restart:
 /opt/etc/init.d/S99xkeen-autoreload restart
 ```
 
-## 7. Verify process
+Verify:
 
 ```sh
 ps | grep xkeen-autoreload-vless
 ```
 
-## 8. Update to latest binary later
+The service checks the subscription every hour by default. If only the provider's rotating SNI/SID changes, XKeen is not restarted.
+
+## 6. Update the application later
+
+Stop the service first and download to a temporary file to avoid `Text file busy`:
 
 ```sh
 /opt/etc/init.d/S99xkeen-autoreload stop
@@ -123,7 +159,6 @@ wget -O /opt/bin/xkeen-autoreload-vless.new \
 chmod +x /opt/bin/xkeen-autoreload-vless.new
 mv /opt/bin/xkeen-autoreload-vless.new /opt/bin/xkeen-autoreload-vless
 
+/opt/bin/xkeen-autoreload-vless version
 /opt/etc/init.d/S99xkeen-autoreload start
 ```
-
-Using a temporary file avoids replacing an executable while it is running and prevents `Text file busy`.
