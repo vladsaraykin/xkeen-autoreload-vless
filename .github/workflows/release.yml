@@ -1,0 +1,53 @@
+name: Build Keenetic binary
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Test
+        run: go test ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build linux/mipsle
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: mipsle
+          GOMIPS: softfloat
+        run: |
+          mkdir -p dist
+          go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_SHA::7}" \
+            -o dist/xkeen-autoreload-vless-linux-mipsle ./cmd/xkeen-autoreload
+          sha256sum dist/xkeen-autoreload-vless-linux-mipsle \
+            > dist/xkeen-autoreload-vless-linux-mipsle.sha256
+
+      - name: Replace rolling latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest \
+            dist/xkeen-autoreload-vless-linux-mipsle \
+            dist/xkeen-autoreload-vless-linux-mipsle.sha256 \
+            --title "Latest Keenetic build" \
+            --notes "Automated linux/mipsle soft-float build from commit $GITHUB_SHA" \
+            --latest
