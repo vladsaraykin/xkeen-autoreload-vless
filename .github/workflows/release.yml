@@ -1,9 +1,9 @@
-name: Build Keenetic binary
+name: Release Keenetic binary
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -14,6 +14,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate SemVer tag
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must follow SemVer, for example v0.1.0 or v1.2.3-rc.1"
+            exit 1
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -28,26 +36,27 @@ jobs:
         run: go vet ./...
 
       - name: Build linux/mipsle
+        shell: bash
         env:
           CGO_ENABLED: "0"
           GOOS: linux
           GOARCH: mipsle
           GOMIPS: softfloat
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
-          go build -trimpath -ldflags="-s -w -X main.version=${GITHUB_SHA::7}" \
+          go build -trimpath -ldflags="-s -w -X main.version=$VERSION" \
             -o dist/xkeen-autoreload-vless-linux-mipsle ./cmd/xkeen-autoreload
           sha256sum dist/xkeen-autoreload-vless-linux-mipsle \
             > dist/xkeen-autoreload-vless-linux-mipsle.sha256
 
-      - name: Replace rolling latest release
+      - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --cleanup-tag --yes || true
-          gh release create latest \
+          gh release create "$GITHUB_REF_NAME" \
             dist/xkeen-autoreload-vless-linux-mipsle \
             dist/xkeen-autoreload-vless-linux-mipsle.sha256 \
-            --title "Latest Keenetic build" \
-            --notes "Automated linux/mipsle soft-float build from commit $GITHUB_SHA" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
             --latest
