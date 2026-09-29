@@ -4,6 +4,8 @@
 
 ## 1. Скачать бинарник
 
+### Вариант через `wget`
+
 ```sh
 cd /opt/bin
 
@@ -13,7 +15,7 @@ wget -O xkeen-autoreload-vless \
 chmod +x /opt/bin/xkeen-autoreload-vless
 ```
 
-Если `wget` недоступен, используйте `curl`:
+### Вариант через `curl`
 
 ```sh
 curl -fL \
@@ -127,11 +129,23 @@ chmod +x /opt/bin/xkeen-autoreload-vless
 
 ## 5. Установка как сервис Entware
 
-Скачайте init-скрипт:
+Скачайте init-скрипт.
+
+### Вариант через `wget`
 
 ```sh
 wget -O /opt/etc/init.d/S99xkeen-autoreload \
   https://raw.githubusercontent.com/vladsaraykin/xkeen-autoreload-vless/main/scripts/S99xkeen-autoreload
+
+chmod +x /opt/etc/init.d/S99xkeen-autoreload
+```
+
+### Вариант через `curl`
+
+```sh
+curl -fL \
+  https://raw.githubusercontent.com/vladsaraykin/xkeen-autoreload-vless/main/scripts/S99xkeen-autoreload \
+  -o /opt/etc/init.d/S99xkeen-autoreload
 
 chmod +x /opt/etc/init.d/S99xkeen-autoreload
 ```
@@ -172,11 +186,21 @@ ps | grep xkeen-autoreload-vless
 /opt/etc/init.d/S99xkeen-autoreload stop
 ```
 
-Скачайте новую версию во временный файл:
+Скачайте новую версию во временный файл.
+
+### Вариант через `wget`
 
 ```sh
 wget -O /opt/bin/xkeen-autoreload-vless.new \
   https://github.com/vladsaraykin/xkeen-autoreload-vless/releases/latest/download/xkeen-autoreload-vless-linux-mipsle
+```
+
+### Вариант через `curl`
+
+```sh
+curl -fL \
+  https://github.com/vladsaraykin/xkeen-autoreload-vless/releases/latest/download/xkeen-autoreload-vless-linux-mipsle \
+  -o /opt/bin/xkeen-autoreload-vless.new
 ```
 
 Дайте права:
