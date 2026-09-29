@@ -1,0 +1,15 @@
+#!/bin/sh
+
+ENABLED=yes
+PROCS=xkeen-autoreload-vless
+ARGS="run"
+PREARGS=""
+DESC="$PROCS"
+PATH=/opt/sbin:/opt/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+ENV_FILE=/opt/etc/xkeen-autoreload-vless.env
+if [ -r "$ENV_FILE" ]; then
+    . "$ENV_FILE"
+fi
+
+. /opt/etc/init.d/rc.func
