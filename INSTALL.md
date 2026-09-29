@@ -1,8 +1,8 @@
-# Install on Keenetic / Entware
+# Установка на Keenetic / Entware
 
-The router does **not** need Go, make, git, or gcc. Use the prebuilt static MIPSLE binary from the latest GitHub Release.
+На роутере **не нужны** Go, make, git или gcc. Используется готовый статический бинарник MIPSLE из последнего GitHub Release.
 
-## 1. Download
+## 1. Скачать бинарник
 
 ```sh
 cd /opt/bin
@@ -13,7 +13,7 @@ wget -O xkeen-autoreload-vless \
 chmod +x /opt/bin/xkeen-autoreload-vless
 ```
 
-If `wget` is unavailable:
+Если `wget` недоступен, используйте `curl`:
 
 ```sh
 curl -fL \
@@ -23,23 +23,23 @@ curl -fL \
 chmod +x /opt/bin/xkeen-autoreload-vless
 ```
 
-Check the version:
+Проверить версию:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless version
 ```
 
-## 2. First-run interactive setup
+## 2. Первый запуск и интерактивная настройка
 
-You no longer need to create `/opt/etc/xkeen-autoreload-vless.env` manually.
+Создавать `/opt/etc/xkeen-autoreload-vless.env` вручную больше не нужно.
 
-Run:
+Запустите:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless setup
 ```
 
-The application asks for the subscription URL:
+Приложение попросит ссылку на подписку:
 
 ```text
 Первичная настройка xkeen-autoreload-vless
@@ -47,7 +47,14 @@ The application asks for the subscription URL:
 Вставьте URL подписки:
 ```
 
-Paste your subscription URL and press Enter. The application downloads the response, decodes Base64, parses VLESS nodes, and extracts the countries from labels such as:
+Вставьте ссылку и нажмите Enter.
+
+Далее приложение:
+
+- скачает подписку;
+- декодирует Base64;
+- распарсит VLESS-ноды;
+- извлечёт страны из названий вида:
 
 ```text
 🇳🇱 Амстердам, Нидерланды, Extra
@@ -55,7 +62,7 @@ Paste your subscription URL and press Enter. The application downloads the respo
 🇨🇭 Цюрих, Швейцария, Extra
 ```
 
-Then it displays a numbered list:
+После этого появится список:
 
 ```text
 Доступные страны:
@@ -66,52 +73,61 @@ Then it displays a numbered list:
 Выберите страну [1-3]: 3
 ```
 
-After the choice:
+После выбора:
 
 ```text
 Готово. Выбрана страна: Швейцария
 Конфигурация сохранена: /opt/etc/xkeen-autoreload-vless.env
 ```
 
-The file is stored with permission `0600`. The application reads it directly; it is not executed or sourced as a shell script.
+Файл конфигурации сохраняется с правами `0600`.
 
-If you start:
+Приложение читает этот файл напрямую и не выполняет его как shell-скрипт.
+
+Если запустить:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless
 ```
 
-without a configuration, the same wizard starts automatically when running in an interactive terminal.
+без конфигурации, тот же мастер настройки запустится автоматически при интерактивном запуске.
 
-To change the URL or selected country later:
+Чтобы позже поменять ссылку или страну:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless setup
 ```
 
-## 3. Validate without changing XKeen
+## 3. Проверка без изменения XKeen
 
 ```sh
 /opt/bin/xkeen-autoreload-vless check
 ```
 
-This downloads the subscription and prints the generated `04_outbounds.json`, but does not write the file and does not restart XKeen.
+Команда:
 
-## 4. Apply once
+- скачает подписку;
+- найдёт выбранную страну;
+- сгенерирует `04_outbounds.json`;
+- выведет его в консоль;
+- не будет записывать файл;
+- не будет перезапускать XKeen.
+
+## 4. Разовое применение конфигурации
 
 ```sh
 /opt/bin/xkeen-autoreload-vless update
 ```
 
-Force refresh of rotating SNI/SID:
+Принудительно обновить ротируемые `SNI/SID`:
 
 ```sh
 /opt/bin/xkeen-autoreload-vless update --force
 ```
 
-## 5. Install as Entware service
+## 5. Установка как сервис Entware
 
-Download the init script:
+Скачайте init-скрипт:
 
 ```sh
 wget -O /opt/etc/init.d/S99xkeen-autoreload \
@@ -120,45 +136,76 @@ wget -O /opt/etc/init.d/S99xkeen-autoreload \
 chmod +x /opt/etc/init.d/S99xkeen-autoreload
 ```
 
-Start:
+Запуск:
 
 ```sh
 /opt/etc/init.d/S99xkeen-autoreload start
 ```
 
-Stop:
+Остановка:
 
 ```sh
 /opt/etc/init.d/S99xkeen-autoreload stop
 ```
 
-Restart:
+Перезапуск:
 
 ```sh
 /opt/etc/init.d/S99xkeen-autoreload restart
 ```
 
-Verify:
+Проверка процесса:
 
 ```sh
 ps | grep xkeen-autoreload-vless
 ```
 
-The service checks the subscription every hour by default. If only the provider's rotating SNI/SID changes, XKeen is not restarted.
+По умолчанию сервис проверяет подписку раз в час.
 
-## 6. Update the application later
+Если у провайдера изменились только ротируемые `SNI/SID`, XKeen не будет перезапущен.
 
-Stop the service first and download to a temporary file to avoid `Text file busy`:
+## 6. Обновление приложения
+
+Сначала остановите сервис:
 
 ```sh
 /opt/etc/init.d/S99xkeen-autoreload stop
+```
 
+Скачайте новую версию во временный файл:
+
+```sh
 wget -O /opt/bin/xkeen-autoreload-vless.new \
   https://github.com/vladsaraykin/xkeen-autoreload-vless/releases/latest/download/xkeen-autoreload-vless-linux-mipsle
+```
 
+Дайте права:
+
+```sh
 chmod +x /opt/bin/xkeen-autoreload-vless.new
-mv /opt/bin/xkeen-autoreload-vless.new /opt/bin/xkeen-autoreload-vless
+```
 
+Замените бинарник:
+
+```sh
+mv /opt/bin/xkeen-autoreload-vless.new \
+   /opt/bin/xkeen-autoreload-vless
+```
+
+Проверьте версию:
+
+```sh
 /opt/bin/xkeen-autoreload-vless version
+```
+
+Запустите сервис:
+
+```sh
 /opt/etc/init.d/S99xkeen-autoreload start
+```
+
+Использование временного файла позволяет избежать ошибки:
+
+```text
+Text file busy
 ```
