@@ -20,15 +20,18 @@ type Updater struct {
 }
 
 func New(cfg config.Config) *Updater {
-	return &Updater{cfg: cfg, sub: subscription.New(cfg.HTTPTimeout)}
+	return &Updater{
+		cfg: cfg,
+		sub: subscription.NewWithOptions(cfg.HTTPTimeout, cfg.UserAgent, cfg.InsecureTLS),
+	}
 }
 
 func (u *Updater) Execute(ctx context.Context) (bool, error) {
-	lines, err := u.sub.Fetch(ctx, u.cfg.SubscriptionURL)
+	nodes, err := u.sub.Fetch(ctx, u.cfg.SubscriptionURL)
 	if err != nil {
 		return false, err
 	}
-	node, err := vless.Select(lines, u.cfg.Country, u.cfg.City)
+	node, err := vless.Select(nodes, u.cfg.Country, u.cfg.City)
 	if err != nil {
 		return false, err
 	}
@@ -83,6 +86,7 @@ func atomicReplaceWithBackup(path string, data []byte) error {
 	}
 	return os.Rename(tmp, path)
 }
+
 func restoreBackup(path string) error {
 	b, err := os.ReadFile(path + ".bak")
 	if err != nil {
@@ -90,6 +94,7 @@ func restoreBackup(path string) error {
 	}
 	return os.WriteFile(path, b, 0o600)
 }
+
 func restart(ctx context.Context, command string) error {
 	cmd := exec.CommandContext(ctx, command, "-restart")
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
