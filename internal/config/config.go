@@ -24,6 +24,8 @@ type Config struct {
 	XKeenCommand    string
 	Interval        time.Duration
 	HTTPTimeout     time.Duration
+	UserAgent       string
+	InsecureTLS     bool
 	Force           bool
 	Once            bool
 	DryRun          bool
@@ -63,6 +65,8 @@ func Parse(args []string) (Config, string, error) {
 	fs.StringVar(&cfg.XKeenCommand, "xkeen-command", value("XKEEN_COMMAND", fileValues, "xkeen"), "xkeen executable")
 	fs.DurationVar(&cfg.Interval, "interval", durationValue("XKEEN_INTERVAL", fileValues, time.Hour), "service polling interval")
 	fs.DurationVar(&cfg.HTTPTimeout, "http-timeout", durationValue("XKEEN_HTTP_TIMEOUT", fileValues, 20*time.Second), "HTTP timeout")
+	fs.StringVar(&cfg.UserAgent, "user-agent", value("XKEEN_USER_AGENT", fileValues, "v2rayNG/1.8.19"), "subscription HTTP User-Agent")
+	fs.BoolVar(&cfg.InsecureTLS, "insecure-tls", boolValue("XKEEN_INSECURE_TLS", fileValues, false), "disable TLS certificate verification")
 	fs.BoolVar(&cfg.Force, "force", false, "force update even when stable node identity is unchanged")
 	fs.BoolVar(&cfg.Once, "once", false, "run one iteration and exit")
 	fs.BoolVar(&cfg.DryRun, "dry-run", false, "print generated config without writing or restarting")
@@ -136,6 +140,8 @@ func SaveFile(cfg Config) error {
 		"XKEEN_COMMAND=" + strconv.Quote(cfg.XKeenCommand),
 		"XKEEN_INTERVAL=" + strconv.Quote(cfg.Interval.String()),
 		"XKEEN_HTTP_TIMEOUT=" + strconv.Quote(cfg.HTTPTimeout.String()),
+		"XKEEN_USER_AGENT=" + strconv.Quote(cfg.UserAgent),
+		"XKEEN_INSECURE_TLS=" + strconv.FormatBool(cfg.InsecureTLS),
 		"",
 	}, "\n")
 	tmp := cfg.ConfigPath + ".tmp"
@@ -170,4 +176,16 @@ func durationValue(key string, fileValues map[string]string, fallback time.Durat
 		}
 	}
 	return fallback
+}
+
+func boolValue(key string, fileValues map[string]string, fallback bool) bool {
+	raw := value(key, fileValues, "")
+	if raw == "" {
+		return fallback
+	}
+	v, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fallback
+	}
+	return v
 }
