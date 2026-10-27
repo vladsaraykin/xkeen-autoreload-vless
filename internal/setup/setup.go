@@ -30,6 +30,17 @@ func Run(ctx context.Context, cfg config.Config, in io.Reader, out io.Writer) (c
 	fmt.Fprintln(out, "Загружаю подписку и определяю формат...")
 	client := subscription.NewWithOptions(cfg.HTTPTimeout, cfg.UserAgent, cfg.InsecureTLS)
 	nodes, err := client.Fetch(ctx, subscriptionURL)
+	if err != nil && !cfg.InsecureTLS && isCertificateError(err) {
+		answer, promptErr := prompt(reader, out, "Проверка TLS-сертификата не прошла. Повторить без проверки сертификата? [y/N]: ")
+		if promptErr != nil {
+			return cfg, promptErr
+		}
+		if strings.EqualFold(answer, "y") || strings.EqualFold(answer, "yes") || strings.EqualFold(answer, "д") || strings.EqualFold(answer, "да") {
+			cfg.InsecureTLS = true
+			client = subscription.NewWithOptions(cfg.HTTPTimeout, cfg.UserAgent, true)
+			nodes, err = client.Fetch(ctx, subscriptionURL)
+		}
+	}
 	if err != nil {
 		return cfg, fmt.Errorf("не удалось загрузить подписку: %w", err)
 	}
@@ -79,4 +90,14 @@ func prompt(reader *bufio.Reader, out io.Writer, text string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(line), nil
+}
+
+func isCertificateError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "x509") ||
+		strings.Contains(msg, "certificate") ||
+		strings.Contains(msg, "tls")
 }
