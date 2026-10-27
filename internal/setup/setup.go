@@ -27,47 +27,47 @@ func Run(ctx context.Context, cfg config.Config, in io.Reader, out io.Writer) (c
 		return cfg, fmt.Errorf("URL подписки не может быть пустым")
 	}
 
-	fmt.Fprintln(out, "Загружаю и декодирую подписку...")
-	client := subscription.New(cfg.HTTPTimeout)
-	lines, err := client.Fetch(ctx, subscriptionURL)
+	fmt.Fprintln(out, "Загружаю подписку и определяю формат...")
+	client := subscription.NewWithOptions(cfg.HTTPTimeout, cfg.UserAgent, cfg.InsecureTLS)
+	nodes, err := client.Fetch(ctx, subscriptionURL)
 	if err != nil {
 		return cfg, fmt.Errorf("не удалось загрузить подписку: %w", err)
 	}
 
-	countries := vless.Countries(lines)
-	if len(countries) == 0 {
+	choices := vless.Choices(nodes)
+	if len(choices) == 0 {
 		return cfg, fmt.Errorf("в подписке не найдено ни одной VLESS-ноды с распознаваемой страной")
 	}
 
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Доступные страны:")
-	for i, country := range countries {
-		fmt.Fprintf(out, "  %d) %s\n", i+1, country)
+	for i, choice := range choices {
+		fmt.Fprintf(out, "  %d) %s\n", i+1, choice.Label)
 	}
 
-	var selected string
-	for selected == "" {
-		raw, err := prompt(reader, out, fmt.Sprintf("Выберите страну [1-%d]: ", len(countries)))
+	var selected vless.Choice
+	for selected.Key == "" {
+		raw, err := prompt(reader, out, fmt.Sprintf("Выберите страну [1-%d]: ", len(choices)))
 		if err != nil {
 			return cfg, err
 		}
 		n, err := strconv.Atoi(strings.TrimSpace(raw))
-		if err != nil || n < 1 || n > len(countries) {
+		if err != nil || n < 1 || n > len(choices) {
 			fmt.Fprintln(out, "Некорректный номер. Попробуйте ещё раз.")
 			continue
 		}
-		selected = countries[n-1]
+		selected = choices[n-1]
 	}
 
 	cfg.SubscriptionURL = subscriptionURL
-	cfg.Country = selected
+	cfg.Country = selected.Key
 	cfg.City = ""
 	if err := config.SaveFile(cfg); err != nil {
 		return cfg, fmt.Errorf("сохранить конфигурацию: %w", err)
 	}
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Готово. Выбрана страна: %s\n", selected)
+	fmt.Fprintf(out, "Готово. Выбрана страна: %s\n", selected.Label)
 	fmt.Fprintf(out, "Конфигурация сохранена: %s\n", cfg.ConfigPath)
 	return cfg, nil
 }
