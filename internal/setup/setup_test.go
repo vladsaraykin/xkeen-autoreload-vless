@@ -29,13 +29,13 @@ func TestRunBase64Subscription(t *testing.T) {
 		Interval: time.Hour,
 		HTTPTimeout: 5 * time.Second,
 	}
-	input := strings.NewReader(srv.URL + "\n1\n")
+	input := strings.NewReader(srv.URL + "\n1\n1\n")
 	var output strings.Builder
 	got, err := Run(context.Background(), cfg, input, &output)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Country != "🇨🇭" || got.SubscriptionURL != srv.URL {
+	if got.Country != "🇨🇭" || got.Profile == "" || got.SubscriptionURL != srv.URL {
 		t.Fatalf("unexpected config: %+v", got)
 	}
 	if !strings.Contains(output.String(), "Швейцария") {
