@@ -67,3 +67,28 @@ func TestFetchJSONConfigArray(t *testing.T) {
 		t.Fatal("RawOutbound is empty")
 	}
 }
+
+
+func TestJSONTLSProfilesAndMultiOutbound(t *testing.T) {
+	payload := `[
+	  {"remarks":"🇰🇿 Казахстан · ИИ","outbounds":[
+	    {"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"kz.example","port":443,"users":[{"id":"uuid","encryption":"none"}]}]},"streamSettings":{"network":"grpc","security":"tls","grpcSettings":{"serviceName":"ai"}}},
+	    {"tag":"ai","protocol":"vless","settings":{"vnext":[{"address":"backup.example","port":443,"users":[{"id":"uuid","encryption":"none"}]}]},"streamSettings":{"network":"xhttp","security":"tls"}},
+	    {"tag":"direct","protocol":"freedom"}
+	  ]},
+	  {"remarks":"🇺🇸 США · ИИ","outbounds":[{"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"us.example","port":443,"users":[{"id":"uuid","encryption":"none"}]}]},"streamSettings":{"network":"xhttp","security":"tls"}}]}
+	]`
+	nodes, err := parseJSON([]byte(payload))
+	if err != nil { t.Fatal(err) }
+	if len(nodes) != 2 { t.Fatalf("want 2 JSON profiles, got %d", len(nodes)) }
+	if nodes[0].Address != "kz.example" || !nodes[0].Complex { t.Fatalf("wrong first profile: %+v", nodes[0]) }
+	if nodes[1].Address != "us.example" || nodes[1].Complex { t.Fatalf("wrong second profile: %+v", nodes[1]) }
+	if len(nodes[0].RawOutbounds) != 3 { t.Fatalf("want original outbound list, got %d", len(nodes[0].RawOutbounds)) }
+	if nodes[0].PublicKey != "" || nodes[0].Security != "tls" { t.Fatal("TLS profile was incorrectly parsed as Reality") }
+}
+
+func TestJSONRejectsMalformedPayload(t *testing.T) {
+	if _, err := parseJSON([]byte(`[{"remarks":"test"}]`)); err == nil {
+		t.Fatal("expected error for JSON without supported VLESS outbound")
+	}
+}
