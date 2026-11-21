@@ -18,6 +18,7 @@ type Config struct {
 	ConfigPath      string
 	SubscriptionURL string
 	Country         string
+	Profile         string
 	City            string
 	OutputPath      string
 	StatePath       string
@@ -59,6 +60,7 @@ func Parse(args []string) (Config, string, error) {
 	fs.StringVar(&cfg.ConfigPath, "config", configPath, "configuration file path")
 	fs.StringVar(&cfg.SubscriptionURL, "subscription-url", value("XKEEN_SUBSCRIPTION_URL", fileValues, ""), "subscription URL")
 	fs.StringVar(&cfg.Country, "country", value("XKEEN_COUNTRY", fileValues, ""), "country name to select")
+	fs.StringVar(&cfg.Profile, "profile", value("XKEEN_PROFILE", fileValues, ""), "exact selected profile remarks")
 	fs.StringVar(&cfg.City, "city", value("XKEEN_CITY", fileValues, ""), "optional city name to prefer")
 	fs.StringVar(&cfg.OutputPath, "output", value("XKEEN_OUTBOUND_PATH", fileValues, "/opt/etc/xray/configs/04_outbounds.json"), "04_outbounds.json path")
 	fs.StringVar(&cfg.StatePath, "state", value("XKEEN_STATE_PATH", fileValues, "/opt/var/lib/xkeen-autoreload-vless/state.json"), "state file path")
@@ -134,6 +136,7 @@ func SaveFile(cfg Config) error {
 	content := strings.Join([]string{
 		"XKEEN_SUBSCRIPTION_URL=" + strconv.Quote(cfg.SubscriptionURL),
 		"XKEEN_COUNTRY=" + strconv.Quote(cfg.Country),
+		"XKEEN_PROFILE=" + strconv.Quote(cfg.Profile),
 		"XKEEN_CITY=" + strconv.Quote(cfg.City),
 		"XKEEN_OUTBOUND_PATH=" + strconv.Quote(cfg.OutputPath),
 		"XKEEN_STATE_PATH=" + strconv.Quote(cfg.StatePath),
