@@ -63,9 +63,7 @@ func (c *Client) Fetch(ctx context.Context, url string) ([]vless.Node, error) {
 	}
 
 	if strings.HasPrefix(payload, "[") || strings.HasPrefix(payload, "{") {
-		if nodes, err := parseJSON([]byte(payload)); err == nil && len(nodes) > 0 {
-			return nodes, nil
-		}
+		return parseJSON([]byte(payload))
 	}
 
 	decoded, err := decodeBase64(payload)
@@ -95,7 +93,9 @@ func parseVLESSLines(payload string) ([]vless.Node, error) {
 
 type jsonConfig struct {
 	Outbounds []json.RawMessage `json:"outbounds"`
-	Remarks   string            `json:"remarks"`
+	Remarks string `json:"remarks"`
+	Routing json.RawMessage `json:"routing"`
+	BurstObservatory json.RawMessage `json:"burstObservatory"`
 }
 
 type jsonOutbound struct {
@@ -136,6 +136,10 @@ func parseJSON(raw []byte) ([]vless.Node, error) {
 
 	var nodes []vless.Node
 	for _, cfg := range configs {
+		// Каждый JSON-элемент является отдельным профилем, а не набором
+		// независимых стран. Выбираем основной proxy VLESS, сохраняя остальные.
+		var primary *vless.Node
+		vlessCount := 0
 		for _, rawOutbound := range cfg.Outbounds {
 			var outbound jsonOutbound
 			if err := json.Unmarshal(rawOutbound, &outbound); err != nil || outbound.Protocol != "vless" {
@@ -147,24 +151,30 @@ func parseJSON(raw []byte) ([]vless.Node, error) {
 			vnext := outbound.Settings.VNext[0]
 			user := vnext.Users[0]
 			reality := outbound.StreamSettings.RealitySettings
-			if user.ID == "" || vnext.Address == "" || vnext.Port == 0 || reality.PublicKey == "" {
+			if user.ID == "" || vnext.Address == "" || vnext.Port < 1 || vnext.Port > 65535 {
 				continue
 			}
-			nodes = append(nodes, vless.Node{
-				UUID:        user.ID,
-				Address:     vnext.Address,
-				Port:        vnext.Port,
-				Encryption:  defaultString(user.Encryption, "none"),
-				Flow:        user.Flow,
-				Network:     defaultString(outbound.StreamSettings.Network, "tcp"),
-				Security:    defaultString(outbound.StreamSettings.Security, "reality"),
-				SNI:         reality.ServerName,
-				PublicKey:   reality.PublicKey,
-				ShortID:     reality.ShortID,
-				Fingerprint: defaultString(reality.Fingerprint, "firefox"),
-				Name:        cfg.Remarks,
+			vlessCount++
+			n := vless.Node{
+				UUID: user.ID, Address: vnext.Address, Port: vnext.Port,
+				Encryption: defaultString(user.Encryption, "none"),
+				Flow: user.Flow,
+				Network: defaultString(outbound.StreamSettings.Network, "tcp"),
+				Security: defaultString(outbound.StreamSettings.Security, "none"),
+				SNI: reality.ServerName, PublicKey: reality.PublicKey,
+				ShortID: reality.ShortID, Fingerprint: defaultString(reality.Fingerprint, "firefox"),
+				Name: cfg.Remarks,
 				RawOutbound: append(json.RawMessage(nil), rawOutbound...),
-			})
+			}
+			if primary == nil || outbound.Tag == "proxy" {
+				copy := n
+				primary = &copy
+			}
+		}
+		if primary != nil {
+			primary.Complex = vlessCount > 1
+			primary.RawOutbounds = cfg.Outbounds
+			nodes = append(nodes, *primary)
 		}
 	}
 	if len(nodes) == 0 {
