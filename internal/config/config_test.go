@@ -13,6 +13,7 @@ func TestSaveAndLoadFile(t *testing.T) {
 		ConfigPath: path,
 		SubscriptionURL: "https://example.com/s/a?x=1&y=2",
 		Country: "🇨🇭",
+		Profile:"🇨🇭 Швейцария · мир",
 		OutputPath: "/tmp/out.json",
 		StatePath: "/tmp/state.json",
 		XKeenCommand: "xkeen",
@@ -30,6 +31,7 @@ func TestSaveAndLoadFile(t *testing.T) {
 	}
 	if values["XKEEN_SUBSCRIPTION_URL"] != cfg.SubscriptionURL ||
 		values["XKEEN_COUNTRY"] != cfg.Country ||
+		values["XKEEN_PROFILE"] != cfg.Profile ||
 		values["XKEEN_USER_AGENT"] != cfg.UserAgent ||
 		values["XKEEN_INSECURE_TLS"] != "true" {
 		t.Fatalf("unexpected values: %#v", values)
