@@ -70,8 +70,43 @@ func Run(ctx context.Context, cfg config.Config, in io.Reader, out io.Writer) (c
 		selected = choices[n-1]
 	}
 
+	// Вторая ступень: закрепляем точный профиль, чтобы при перестановке
+	// элементов подписки не переключаться на другой сервер.
+	profiles := vless.Profiles(nodes, selected.Key)
+	if len(profiles) == 0 { return cfg, fmt.Errorf("в выбранной группе нет профилей") }
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Профили группы %s:\n", selected.Label)
+	for i, p := range profiles {
+		suffix := ""
+		if p.Complex { suffix = " [несколько серверов/балансировка]" }
+		fmt.Fprintf(out, "  %d) %s%s\n", i+1, p.Name, suffix)
+	}
+	var chosen *vless.Node
+	for chosen == nil {
+		raw, err := prompt(reader, out, fmt.Sprintf("Выберите профиль [1-%d]: ", len(profiles)))
+		if err != nil { return cfg, err }
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > len(profiles) {
+			fmt.Fprintln(out,"Некорректный номер. Попробуйте ещё раз.")
+			continue
+		}
+		chosen = &profiles[n-1]
+	}
+	if chosen.Complex {
+		fmt.Fprintln(out, "Внимание: профиль содержит несколько серверов и правила балансировки.")
+		fmt.Fprintln(out, "В 04_outbounds.json для XKeen будет перенесён только основной VLESS proxy.")
+		fmt.Fprintln(out, "Балансировка и маршрутизация исходного профиля не сохраняются.")
+		answer, err := prompt(reader, out, "Продолжить в упрощённом режиме? [y/N]: ")
+		if err != nil { return cfg, err }
+		if !strings.EqualFold(answer,"y") && !strings.EqualFold(answer,"yes") &&
+			!strings.EqualFold(answer,"д") && !strings.EqualFold(answer,"да") {
+			return cfg, fmt.Errorf("настройка отменена: сложный профиль требует отдельной интеграции routing")
+		}
+	}
+
 	cfg.SubscriptionURL = subscriptionURL
 	cfg.Country = selected.Key
+	cfg.Profile = chosen.Name
 	cfg.City = ""
 	if err := config.SaveFile(cfg); err != nil {
 		return cfg, fmt.Errorf("сохранить конфигурацию: %w", err)
@@ -79,6 +114,7 @@ func Run(ctx context.Context, cfg config.Config, in io.Reader, out io.Writer) (c
 
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "Готово. Выбрана страна: %s\n", selected.Label)
+	fmt.Fprintf(out, "Выбран профиль: %s\n", chosen.Name)
 	fmt.Fprintf(out, "Конфигурация сохранена: %s\n", cfg.ConfigPath)
 	return cfg, nil
 }
