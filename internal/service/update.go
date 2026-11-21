@@ -31,7 +31,7 @@ func (u *Updater) Execute(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	node, err := vless.Select(nodes, u.cfg.Country, u.cfg.City)
+	node, err := vless.SelectProfile(nodes, u.cfg.Country, u.cfg.Profile)
 	if err != nil {
 		return false, err
 	}
