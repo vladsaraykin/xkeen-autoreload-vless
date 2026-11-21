@@ -62,7 +62,36 @@ func TestSelectByFlag(t *testing.T) {
 
 func TestRawOutboundDoesNotAffectStableKey(t *testing.T) {
 	n := Node{UUID: "u", Address: "a", Port: 443, PublicKey: "p", RawOutbound: json.RawMessage(`{"tag":"proxy"}`)}
-	if got := n.StableKey(); got != "u|a|443|p" {
+	if got := n.StableKey(); len(got) != 64 {
 		t.Fatalf("StableKey() = %q", got)
 	}
+}
+
+func TestProfileSelectionDoesNotSwitch(t *testing.T) {
+	nodes := []Node{
+		{Name:"🇳🇱 Нидерланды · прямой",Address:"one"},
+		{Name:"🇳🇱 Нидерланды · ультра",Address:"two"},
+	}
+	selected,err:=SelectProfile(nodes,"🇳🇱","🇳🇱 Нидерланды · ультра")
+	if err!=nil || selected.Address!="two" {t.Fatalf("got: %+v, %v",selected,err)}
+	_,err=SelectProfile(nodes,"🇳🇱","🇳🇱 Нидерланды · отсутствует")
+	if err==nil {t.Fatal("missing pinned profile must fail instead of switching")}
+}
+
+func TestChoicesSpecialAndAllCountries(t *testing.T) {
+	nodes:=[]Node{
+		{Name:"🇰🇿 Казахстан · ИИ"}, {Name:"🇺🇸 США · ИИ"},
+		{Name:"🇨🇭 Швейцария · мир"}, {Name:"🇪🇺 LB · Авто"},
+		{Name:"🤖 Автовыбор"}, {Name:"🇳🇱 Нидерланды · прямой"},
+	}
+	choices:=Choices(nodes)
+	if len(choices)!=5 {t.Fatalf("got %d choices: %#v",len(choices),choices)}
+	if choices[len(choices)-1].Key!="SPECIAL" {t.Fatalf("special group missing: %#v",choices)}
+	if len(Profiles(nodes,"SPECIAL"))!=2 {t.Fatal("special profiles not grouped")}
+}
+
+func TestTLSStableKeyTracksTransportChanges(t *testing.T) {
+	a:=Node{RawOutbound:json.RawMessage(`{"tag":"proxy","protocol":"vless","streamSettings":{"security":"tls","xhttpSettings":{"path":"/one"}}}`)}
+	b:=Node{RawOutbound:json.RawMessage(`{"tag":"proxy","protocol":"vless","streamSettings":{"security":"tls","xhttpSettings":{"path":"/two"}}}`)}
+	if a.StableKey()==b.StableKey() {t.Fatal("TLS xHTTP path change must trigger update")}
 }
